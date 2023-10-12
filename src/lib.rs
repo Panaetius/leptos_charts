@@ -243,6 +243,76 @@ where
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
+struct PieSegment {
+    from: (f64, f64),
+    to: (f64, f64),
+    value: f64,
+}
+enum SegmentSize {
+    LessThanHalf,
+    Half,
+    MoreThanHalf,
+}
+impl PieSegment {
+    fn angle(&self) -> SegmentSize {
+        let zcross = self.from.0 * self.to.1 - self.to.0 * self.from.1;
+        if zcross == 0.0 {
+            SegmentSize::Half
+        } else if zcross > 0.0 {
+            SegmentSize::LessThanHalf
+        } else {
+            SegmentSize::MoreThanHalf
+        }
+    }
+    fn get_arc_path(&self) -> String {
+        let angle = self.angle();
+
+        let large_arc_flag = match angle {
+            SegmentSize::LessThanHalf | SegmentSize::Half => 0,
+            SegmentSize::MoreThanHalf => 1,
+        };
+
+        format!(
+            "M0 0 {from_x} {from_y} A100 100 0 {arc_flag} 1 {to_x} {to_y}Z",
+            from_x = self.from.0,
+            from_y = self.from.1,
+            to_x = self.to.0,
+            to_y = self.to.1,
+            arc_flag = large_arc_flag
+        )
+    }
+
+    // Gets a middle vector for two vectors in a circle segment
+    // This points in the direction of a circle segment's center
+    // even if the angle of the segment is >= 180°
+    // uses the cross product to figure out the angle and flips the vector
+    // if it's larger than 180°. For the 180° case, it creates a new vector
+    // 90° clockwise perpendicular to the from vector.
+    fn get_center_unit_vector(&self) -> (f64, f64) {
+        match self.angle() {
+            SegmentSize::Half => {
+                let magnitude = f64::sqrt(self.from.0.powi(2) + self.from.1.powi(2));
+                (self.from.1 / magnitude, -self.from.0 / magnitude)
+            }
+            SegmentSize::LessThanHalf => {
+                let new_x = (self.from.0 + self.to.0) / 2.0;
+                let new_y = (self.from.1 + self.to.1) / 2.0;
+                let magnitude = f64::sqrt(new_x.powi(2) + new_y.powi(2));
+
+                (new_x / magnitude, new_y / magnitude)
+            }
+            SegmentSize::MoreThanHalf => {
+                let new_x = (self.from.0 + self.to.0) / 2.0;
+                let new_y = (self.from.1 + self.to.1) / 2.0;
+                let magnitude = f64::sqrt(new_x.powi(2) + new_y.powi(2));
+
+                (-new_x / magnitude, -new_y / magnitude)
+            }
+        }
+    }
+}
+
 #[component]
 pub fn PieChart<T>(
     values: MaybeSignal<Vec<T>>,
@@ -275,30 +345,13 @@ where
                     })
                     .map(|(f, v)| (f, (v * TAU).cos() * 99.0, (v * TAU).sin() * 99.0)),
             )
-            .map_windows(|[from, to]| {
-                (
-                    to.0,
-                    format!(
-                        "M0 0 {from_x} {from_y} A100 100 0 0 1 {to_x} {to_y}Z",
-                        from_x = from.1,
-                        from_y = from.2,
-                        to_x = to.1,
-                        to_y = to.2
-                    ),
-                    ((from.1 + to.1) / 2.0)
-                        / (f64::sqrt(
-                            ((from.1 + to.1) / 2.0).powi(2) + ((from.2 + to.2) / 2.0).powi(2),
-                        ))
-                        * 85.0,
-                    ((from.2 + to.2) / 2.0)
-                        / (f64::sqrt(
-                            ((from.1 + to.1) / 2.0).powi(2) + ((from.2 + to.2) / 2.0).powi(2),
-                        ))
-                        * 85.0,
-                )
+            .map_windows(|[from, to]| PieSegment {
+                from: (from.1, from.2),
+                to: (to.1, to.2),
+                value: to.0,
             })
             .zip(CATPPUCCIN_COLORS.into_iter().cycle())
-            .collect::<Vec<((f64, String, f64, f64), &&str)>>()
+            .collect::<Vec<(PieSegment, &&str)>>()
     });
 
     view! {
@@ -308,15 +361,16 @@ where
                     .get()
                     .into_iter()
                     .enumerate()
-                    .map(|(i, ((value, path, label_x, label_y), color))| {
+                    .map(|(i, (segment, color))| {
                         let el = create_node_ref::<Path>();
                         let is_hovered = use_element_hover(el);
+                        let label_pos = segment.get_center_unit_vector();
                         view! {
                             <svg viewBox="0 0 200 200">
                                 <g transform="translate(100,100)" stroke="#000" stroke-width="1">
                                     <mask id=format!("cut-path-{}", i)>
                                         <path
-                                            d=path.clone()
+                                            d=segment.get_arc_path()
                                             fill="white"
                                             stroke="black"
                                             stroke-width="2"
@@ -325,7 +379,7 @@ where
                                     </mask>
                                     <path
                                         node_ref=el
-                                        d=path
+                                        d=segment.get_arc_path()
                                         fill=*color
                                         fill-opacity=0.6
                                         stroke=*color
@@ -343,15 +397,15 @@ where
                                         <text
                                             font-size="15px"
                                             vector-effect="non-scaling-stroke"
-                                            x=label_x
-                                            y=label_y
+                                            x=label_pos.0*85.0
+                                            y=label_pos.1*85.0
                                         >
                                             <tspan
                                                 text-anchor="middle"
                                                 dominant-baseline="middle"
                                                 color="#000"
                                             >
-                                                {value}
+                                                {segment.value}
                                             </tspan>
                                         </text>
                                     </Show>
