@@ -127,7 +127,7 @@ where
             .map(|i| ticks.min_point + i as f64 * ticks.spacing)
             .map(move |tick| {
                 (
-                    100.0 - tick / (ticks.max_point - ticks.min_point) * 100.0,
+                    100.0 - (tick - ticks.min_point) / (ticks.max_point - ticks.min_point) * 100.0,
                     format!("{}", tick),
                 )
             })
@@ -136,7 +136,7 @@ where
 
     view! {
         <svg {..attrs}>
-            <svg y="5%" height="90%" overflow="visible">
+            <svg y="10%" height="80%" overflow="visible">
                 <line
                     x1="9.8%"
                     y1="0%"
@@ -175,6 +175,7 @@ where
                         })
                         .collect_view()
                 }}
+
                 {move || {
                     values
                         .get()
@@ -194,21 +195,35 @@ where
                                         <rect
                                             node_ref=el
                                             x=move || (5.0 + 95.0 / num_bars.get() * i as f64)
-                                            y=0
+                                            y=move || {
+                                                if v > 0.0 {
+                                                    100.0 * -tick_config.get().min_point
+                                                        / (tick_config.get().max_point
+                                                            - tick_config.get().min_point)
+                                                } else {
+                                                    100.0 * (v - tick_config.get().min_point)
+                                                        / (tick_config.get().max_point
+                                                            - tick_config.get().min_point)
+                                                }
+                                            }
+
                                             width=move || (80.0 / num_bars.get())
                                             height=move || {
-                                                (100.0 * (v - tick_config.get().min_point)
+                                                100.0 * v.abs()
                                                     / (tick_config.get().max_point
-                                                        - tick_config.get().min_point))
+                                                        - tick_config.get().min_point)
                                             }
+
                                             fill=*color
                                             fill-opacity=move || {
                                                 if is_hovered.get() { "0.8" } else { "0.6" }
                                             }
+
                                             stroke=*color
                                             stroke-width=move || {
                                                 if is_hovered.get() { "3px" } else { "1px" }
                                             }
+
                                             vector-effect="non-scaling-stroke"
                                         ></rect>
                                     </g>
@@ -222,13 +237,15 @@ where
                                                 "{}%", (15.0 + 85.0 / num_bars.get() * (i as f64 + 0.5))
                                             )
                                         }
+
                                         y=move || {
                                             format!(
                                                 "{}%", (100.0 - 100.0 * (v - tick_config.get().min_point) /
                                                 (tick_config.get().max_point - tick_config.get().min_point))
                                             )
                                         }
-                                        dy="-5"
+
+                                        dy=move || { if v > 0.0 { "-5" } else { "15" } }
                                         dx="-9"
                                     >
                                         {v}
@@ -238,6 +255,7 @@ where
                         })
                         .collect_view()
                 }}
+
             </svg>
         </svg>
     }
@@ -392,13 +410,14 @@ where
                                                 format!("url(#cut-path-{})", i)
                                             }
                                         }
-                                    ></path>
+                                    >
+                                    </path>
                                     <Show when=move || is_hovered.get() fallback=|| ()>
                                         <text
                                             font-size="15px"
                                             vector-effect="non-scaling-stroke"
-                                            x=label_pos.0*85.0
-                                            y=label_pos.1*85.0
+                                            x=label_pos.0 * 85.0
+                                            y=label_pos.1 * 85.0
                                         >
                                             <tspan
                                                 text-anchor="middle"
@@ -415,6 +434,7 @@ where
                     })
                     .collect_view()
             }}
+
         </svg>
     }
 }
