@@ -21,6 +21,22 @@ const CATPPUCCIN_COLORS: &[&str] = &[
     "#e64553", //maroon
 ];
 
+#[derive(Debug, Clone)]
+pub enum Color<'a> {
+    Hex(&'a str),
+    RGB(u8, u8, u8),
+}
+
+#[derive(Debug, Clone)]
+pub enum ChartColor<'a, F>
+where
+    F: Fn(usize) -> Color<'a>,
+{
+    Palette(Vec<Color<'a>>),
+    Gradient(Color<'a>, Color<'a>),
+    Calcuated(F),
+}
+
 pub struct ChartOptions {
     pub max_ticks: u8,
 }
