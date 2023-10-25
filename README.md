@@ -44,7 +44,8 @@ let data: Vec<f64> = vec![2.0, 3.0, 1.5, 7.0, 1.0, 2.5, 9.9];
 let options = Box::new(PieChartOptions {
     color: Box::new(Palette(CATPPUCCIN_COLORS.clone())),
 });
-[...]
+
+// In view!{}
 <PieChart
 values=data.into()
 options=options
