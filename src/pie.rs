@@ -7,14 +7,12 @@ use std::{f64::consts::TAU, iter};
 use crate::{ChartColor, Palette, CATPPUCCIN_COLORS};
 
 pub struct PieChartOptions {
-    pub max_ticks: u8,
     pub color: Box<dyn ChartColor>,
 }
 
 impl Default for PieChartOptions {
     fn default() -> Self {
         Self {
-            max_ticks: 5u8,
             color: Box::new(Palette(CATPPUCCIN_COLORS.clone())),
         }
     }
