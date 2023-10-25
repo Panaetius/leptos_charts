@@ -5,45 +5,109 @@ use itertools::Itertools;
 use leptos::{svg::*, *};
 use leptos_use::*;
 use num_traits::ToPrimitive;
+use once_cell::sync::Lazy;
 
-const CATPPUCCIN_COLORS: &[&str] = &[
-    "#dc8a78", //rosewater
-    "#8839ef", //Mauve
-    "#fe640b", //Peach
-    "#40a02b", //green
-    "#04a5e5", //Sky
-    "#ea76cb", //Pink
-    "#1e66f5", //Blue
-    "#d20f39", //Red
-    "#df8e1d", //yellow
-    "#209fb5", //Sapphire
-    "#7287fd", //lavender
-    "#e64553", //maroon
-];
+static CATPPUCCIN_COLORS: Lazy<Vec<Color>> = Lazy::new(|| {
+    vec![
+        Color::Hex("#dc8a78"), //rosewater
+        Color::Hex("#8839ef"), //Mauve
+        Color::Hex("#fe640b"), //Peach
+        Color::Hex("#40a02b"), //green
+        Color::Hex("#04a5e5"), //Sky
+        Color::Hex("#ea76cb"), //Pink
+        Color::Hex("#1e66f5"), //Blue
+        Color::Hex("#d20f39"), //Red
+        Color::Hex("#df8e1d"), //yellow
+        Color::Hex("#209fb5"), //Sapphire
+        Color::Hex("#7287fd"), //lavender
+        Color::Hex("#e64553"), //maroon
+    ]
+});
 
 #[derive(Debug, Clone)]
 pub enum Color<'a> {
     Hex(&'a str),
     RGB(u8, u8, u8),
 }
-
-#[derive(Debug, Clone)]
-pub enum ChartColor<'a, F>
+impl From<Color<'_>> for String {
+    fn from(color: Color) -> String {
+        match color {
+            Color::Hex(s) => s.to_string(),
+            Color::RGB(r, g, b) => format!("#{:02x?}{:02x?}{:02x?}", r, g, b),
+        }
+    }
+}
+impl From<Color<'_>> for (u8, u8, u8) {
+    fn from(color: Color) -> (u8, u8, u8) {
+        match color {
+            Color::Hex(hex) => {
+                assert!(hex.len() == 7);
+                (
+                    u8::from_str_radix(&hex[1..3], 16)
+                        .expect("Couldn't convert hex string to u8 for Color"),
+                    u8::from_str_radix(&hex[3..5], 16)
+                        .expect("Couldn't convert hex string to u8 for Color"),
+                    u8::from_str_radix(&hex[5..7], 16)
+                        .expect("Couldn't convert hex string to u8 for Color"),
+                )
+            }
+            Color::RGB(r, g, b) => (r, g, b),
+        }
+    }
+}
+pub struct Palette<'a>(Vec<Color<'a>>);
+pub struct Gradient<'a> {
+    pub from: Color<'a>,
+    pub to: Color<'a>,
+}
+pub struct CalculatedColor<'a, F>
 where
-    F: Fn(usize) -> Color<'a>,
+    F: Fn(usize, usize) -> Color<'a>,
 {
-    Palette(Vec<Color<'a>>),
-    Gradient(Color<'a>, Color<'a>),
-    Calcuated(F),
+    func: F,
 }
 
+pub trait ChartColor {
+    fn color_for_index(&self, i: usize, total: usize) -> Color;
+}
+impl ChartColor for Palette<'_> {
+    fn color_for_index(&self, i: usize, total: usize) -> Color {
+        self.0[i % self.0.len()].clone()
+    }
+}
+impl ChartColor for Gradient<'_> {
+    fn color_for_index(&self, i: usize, total: usize) -> Color {
+        let from_color: (u8, u8, u8) = self.from.clone().into();
+        let to_color: (u8, u8, u8) = self.to.clone().into();
+        Color::RGB(
+            ((to_color.0 as i64 - from_color.0 as i64) * i as i64 / total as i64
+                + from_color.0 as i64) as u8,
+            ((to_color.1 as i64 - from_color.1 as i64) * i as i64 / total as i64
+                + from_color.1 as i64) as u8,
+            ((to_color.2 as i64 - from_color.2 as i64) * i as i64 / total as i64
+                + from_color.2 as i64) as u8,
+        )
+    }
+}
+impl<'a, F> ChartColor for CalculatedColor<'a, F>
+where
+    F: Fn(usize, usize) -> Color<'a>,
+{
+    fn color_for_index(&self, i: usize, total: usize) -> Color<'a> {
+        (self.func)(i, total)
+    }
+}
 pub struct ChartOptions {
     pub max_ticks: u8,
+    pub color: Box<dyn ChartColor>,
 }
 
 impl Default for ChartOptions {
     fn default() -> Self {
-        Self { max_ticks: 5u8 }
+        Self {
+            max_ticks: 5u8,
+            color: Box::new(Palette(CATPPUCCIN_COLORS.clone())),
+        }
     }
 }
 
@@ -99,44 +163,38 @@ fn nice_ticks(min: f64, max: f64, max_ticks: u8) -> TickSpacing {
 #[component]
 pub fn BarChart<T>(
     values: MaybeSignal<Vec<T>>,
-    options: ChartOptions,
+    options: Box<ChartOptions>,
     #[prop(attrs)] attrs: Vec<(&'static str, Attribute)>,
 ) -> impl IntoView
 where
     T: ToPrimitive + Clone + PartialOrd + 'static,
 {
     let vals = values.clone();
-    let num_bars = create_memo(move |_| vals.get().len() as f64);
+    let num_bars = create_memo(move |_| vals.get().len());
     let vals = values.clone();
-    let max = create_memo(move |_| {
-        vals.get()
-            .iter()
-            .map(|v| v.to_f64().unwrap())
-            .fold(f64::NEG_INFINITY, f64::max)
-    });
-    let vals = values.clone();
-    let min = create_memo(move |_| {
-        let min = vals
+    let min_max = create_memo(move |_| {
+        let min_max = vals
             .get()
             .iter()
             .map(|v| v.to_f64().unwrap())
-            .fold(f64::INFINITY, f64::min);
-        if min < 0.0 {
-            min
-        } else {
-            0.0
-        }
+            .fold((f64::INFINITY, f64::NEG_INFINITY), |(a, b), v| {
+                (f64::min(a, v), f64::max(b, v))
+            });
+        (
+            if min_max.0 < 0.0 { min_max.0 } else { 0.0 },
+            if min_max.1 > 0.0 { min_max.1 } else { 0.0 },
+        )
     });
     let vals = values.clone();
     let values = create_memo(move |_| {
         vals.get()
             .into_iter()
             .map(|v| v.to_f64().unwrap())
-            .zip(CATPPUCCIN_COLORS.into_iter().cycle())
             .enumerate()
-            .collect::<Vec<(usize, (f64, &&str))>>()
+            .collect::<Vec<(usize, f64)>>()
     });
-    let tick_config = create_memo(move |_| nice_ticks(min.get(), max.get(), options.max_ticks));
+    let max_ticks = options.max_ticks;
+    let tick_config = create_memo(move |_| nice_ticks(min_max.get().0, min_max.get().1, max_ticks));
     let ticks = create_memo(move |_| {
         let ticks = tick_config.get();
         (0..ticks.num_ticks)
@@ -196,9 +254,10 @@ where
                     values
                         .get()
                         .into_iter()
-                        .map(|(i, (v, color))| {
+                        .map(|(i, v)| {
                             let el = create_node_ref::<Rect>();
                             let is_hovered = use_element_hover(el);
+                            let color = String::from(options.color.color_for_index(i, num_bars.get()));
                             view! {
                                 <svg
                                     x="10%"
@@ -210,7 +269,7 @@ where
                                     <g transform="matrix(1 0 0 -1 0 100)">
                                         <rect
                                             node_ref=el
-                                            x=move || (5.0 + 95.0 / num_bars.get() * i as f64)
+                                            x=move || (5.0 + 95.0 / num_bars.get() as f64 * i as f64)
                                             y=move || {
                                                 if v > 0.0 {
                                                     100.0 * -tick_config.get().min_point
@@ -223,19 +282,19 @@ where
                                                 }
                                             }
 
-                                            width=move || (80.0 / num_bars.get())
+                                            width=move || (80.0 / num_bars.get() as f64)
                                             height=move || {
                                                 100.0 * v.abs()
                                                     / (tick_config.get().max_point
                                                         - tick_config.get().min_point)
                                             }
 
-                                            fill=*color
+                                            fill=color.clone()
                                             fill-opacity=move || {
                                                 if is_hovered.get() { "0.8" } else { "0.6" }
                                             }
 
-                                            stroke=*color
+                                            stroke=color
                                             stroke-width=move || {
                                                 if is_hovered.get() { "3px" } else { "1px" }
                                             }
@@ -250,7 +309,7 @@ where
                                         vector-effect="non-scaling-stroke"
                                         x=move || {
                                             format!(
-                                                "{}%", (15.0 + 85.0 / num_bars.get() * (i as f64 + 0.5))
+                                                "{}%", (15.0 + 85.0 / num_bars.get() as f64 * (i as f64 + 0.5))
                                             )
                                         }
 
@@ -350,7 +409,7 @@ impl PieSegment {
 #[component]
 pub fn PieChart<T>(
     values: MaybeSignal<Vec<T>>,
-    options: ChartOptions,
+    options: Box<ChartOptions>,
     // colors: Option<&'chart [&'chart str]>,
     #[prop(attrs)] attrs: Vec<(&'static str, Attribute)>,
 ) -> impl IntoView
@@ -364,6 +423,7 @@ where
             .map(|v| v.to_f64().unwrap())
             .collect::<Vec<f64>>()
     });
+    let num_pies = create_memo(move |_| values.get().len());
     let sum = create_memo(move |_| values.get().iter().sum::<f64>());
     let sorted_values = create_memo(move |_| {
         iter::once((0.0, 99.0, 0.0))
@@ -384,8 +444,7 @@ where
                 to: (to.1, to.2),
                 value: to.0,
             })
-            .zip(CATPPUCCIN_COLORS.into_iter().cycle())
-            .collect::<Vec<(PieSegment, &&str)>>()
+            .collect::<Vec<PieSegment>>()
     });
 
     view! {
@@ -395,10 +454,11 @@ where
                     .get()
                     .into_iter()
                     .enumerate()
-                    .map(|(i, (segment, color))| {
+                    .map(|(i, segment)| {
                         let el = create_node_ref::<Path>();
                         let is_hovered = use_element_hover(el);
                         let label_pos = segment.get_center_unit_vector();
+                        let color = String::from(options.color.color_for_index(i, num_pies.get()));
                         view! {
                             <svg viewBox="0 0 200 200">
                                 <g transform="translate(100,100)" stroke="#000" stroke-width="1">
@@ -414,9 +474,9 @@ where
                                     <path
                                         node_ref=el
                                         d=segment.get_arc_path()
-                                        fill=*color
+                                        fill=color.clone()
                                         fill-opacity=0.6
-                                        stroke=*color
+                                        stroke=color
                                         stroke-width="2"
                                         vector-effect="non-scaling-stroke"
                                         mask=move || {
