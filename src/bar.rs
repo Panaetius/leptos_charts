@@ -96,6 +96,33 @@ fn get_ticks(ticks: &TickSpacing) -> Vec<(f64, String)> {
         .collect::<Vec<(f64, String)>>()
 }
 
+/// Simple responsive bar chart
+///
+/// Example:
+/// ```rust
+/// use leptos_charts::*;
+/// use leptos::*;
+///
+/// let data: Vec<f64> = vec![2.0, 3.0, 1.5, 7.0, 1.0, 2.5, 9.9];
+/// let options = Box::new(BarChartOptions {
+///     max_ticks: 4,
+///     color: Box::new(Palette(CATPPUCCIN_COLORS.clone())),
+/// });
+/// # #[cfg(hydrate)]
+/// # {
+/// view!{
+/// <BarChart
+///     values=data.into()
+///     options=options
+///     attr:style="margin-top:5px"
+///     attr:preserveAspectRatio="none"
+///     attr:width="300"
+///     attr:height="200"
+/// />
+/// }
+/// # }
+/// # ;
+/// ```
 #[component]
 pub fn BarChart<T>(
     values: MaybeSignal<Vec<T>>,

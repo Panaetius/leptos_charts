@@ -17,25 +17,22 @@ Usage:
 use leptos_charts::*;
 use leptos::*;
 
-let data: Vec<f64> = vec![2.0, 3.0, 1.5, 7.0, 1.0, 2.5, 9.9];
+let data: Vec<i32> = vec![2, 3, 1, -7, 1, 2, 9];
 let options = Box::new(BarChartOptions {
     max_ticks: 4,
     color: Box::new(Palette(CATPPUCCIN_COLORS.clone())),
 });
-# #[cfg(hydrate)]
-# {
+
 view!{
 <BarChart
-values=data.into()
-options=options
-attr:style="margin-top:5px"
-attr:preserveAspectRatio="none"
-attr:width="300"
-attr:height="200"
+    values=data.into()
+    options=options
+    attr:style="margin-top:5px"
+    attr:preserveAspectRatio="none"
+    attr:width="300"
+    attr:height="200"
 />
 }
-# }
-# ;
 ```
 
 ### Pie Chart
@@ -52,16 +49,12 @@ let options = Box::new(PieChartOptions {
     color: Box::new(Palette(CATPPUCCIN_COLORS.clone())),
 });
 
-# #[cfg(hydrate)]
-# {
 view!{
   <PieChart
-  values=data.into()
-  options=options
-  attr:width="300"
-  attr:height="200"
+      values=data.into()
+      options=options
+      attr:width="300"
+      attr:height="200"
   />
 }
-# }
-# ;
 ```

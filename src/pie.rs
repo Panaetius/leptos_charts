@@ -88,11 +88,35 @@ impl PieSegment {
     }
 }
 
+/// Simple Pie chart, values get sorted from smallest to largest.
+///
+/// Example:
+/// ```rust
+/// use leptos::*;
+/// use leptos_charts::*;
+///
+/// let data: Vec<f64> = vec![2.0, 3.0, 1.5, 7.0, 1.0, 2.5, 9.9];
+/// let options = Box::new(PieChartOptions {
+///     color: Box::new(Palette(CATPPUCCIN_COLORS.clone())),
+/// });
+///
+/// # #[cfg(hydrate)]
+/// # {
+/// view!{
+///   <PieChart
+///       values=data.into()
+///       options=options
+///       attr:width="300"
+///       attr:height="200"
+///   />
+/// }
+/// # }
+/// # ;
+/// ```
 #[component]
 pub fn PieChart<T>(
     values: MaybeSignal<Vec<T>>,
     options: Box<PieChartOptions>,
-    // colors: Option<&'chart [&'chart str]>,
     #[prop(attrs)] attrs: Vec<(&'static str, Attribute)>,
 ) -> impl IntoView
 where
