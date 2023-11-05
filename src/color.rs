@@ -47,16 +47,22 @@ impl From<Color<'_>> for (u8, u8, u8) {
         }
     }
 }
+
+/// Takes colors from a vec of colors, wrapping around if the end is reached
 pub struct Palette<'a>(pub Vec<Color<'a>>);
+
+/// Interpolates between 'from' and 'to' colors
 pub struct Gradient<'a> {
     pub from: Color<'a>,
     pub to: Color<'a>,
 }
+
+/// takes a lambda that takes the current index of and amount of data points and outputs a color
 pub struct CalculatedColor<'a, F>
 where
     F: Fn(usize, usize) -> Color<'a>,
 {
-    func: F,
+    pub func: F,
 }
 
 pub trait ChartColor {
@@ -68,16 +74,24 @@ impl ChartColor for Palette<'_> {
     }
 }
 impl ChartColor for Gradient<'_> {
+    /// Implements linear interpolation with gamma correction
     fn color_for_index(&self, i: usize, total: usize) -> Color {
         let from_color: (u8, u8, u8) = self.from.clone().into();
         let to_color: (u8, u8, u8) = self.to.clone().into();
+        let from_color = (
+            invert_gamma_compression(from_color.0),
+            invert_gamma_compression(from_color.1),
+            invert_gamma_compression(from_color.2),
+        );
+        let to_color = (
+            invert_gamma_compression(to_color.0),
+            invert_gamma_compression(to_color.1),
+            invert_gamma_compression(to_color.2),
+        );
         Color::RGB(
-            ((to_color.0 as i64 - from_color.0 as i64) * i as i64 / total as i64
-                + from_color.0 as i64) as u8,
-            ((to_color.1 as i64 - from_color.1 as i64) * i as i64 / total as i64
-                + from_color.1 as i64) as u8,
-            ((to_color.2 as i64 - from_color.2 as i64) * i as i64 / total as i64
-                + from_color.2 as i64) as u8,
+            gamma_compression((to_color.0 - from_color.0) * i as f64 / total as f64 + from_color.0),
+            gamma_compression((to_color.1 - from_color.1) * i as f64 / total as f64 + from_color.1),
+            gamma_compression((to_color.2 - from_color.2) * i as f64 / total as f64 + from_color.2),
         )
     }
 }
@@ -88,6 +102,23 @@ where
     fn color_for_index(&self, i: usize, total: usize) -> Color<'a> {
         (self.func)(i, total)
     }
+}
+
+fn invert_gamma_compression(channel: u8) -> f64 {
+    let relative = channel as f64 / 255.0;
+    if relative > 0.04045 {
+        f64::powf((relative + 0.055) / 1.055, 2.4)
+    } else {
+        relative / 12.92
+    }
+}
+fn gamma_compression(channel: f64) -> u8 {
+    let corrected = if channel > 0.0031308 {
+        1.055 * f64::powf(channel, 1.0 / 2.4) - 0.055
+    } else {
+        channel * 12.92
+    };
+    corrected as u8
 }
 
 #[cfg(test)]
