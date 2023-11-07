@@ -4,7 +4,7 @@ use leptos_use::*;
 use num_traits::ToPrimitive;
 use std::{f64::consts::TAU, iter};
 
-use crate::{ChartColor, Palette, CATPPUCCIN_COLORS};
+use crate::{point::Series, ChartColor, Palette, Point, CATPPUCCIN_COLORS};
 
 pub struct PieChartOptions {
     pub color: Box<dyn ChartColor>,
@@ -23,6 +23,7 @@ struct PieSegment {
     from: (f64, f64),
     to: (f64, f64),
     value: f64,
+    label: String,
 }
 enum SegmentSize {
     LessThanHalf,
@@ -88,7 +89,7 @@ impl PieSegment {
     }
 }
 
-/// Simple Pie chart, values get sorted from smallest to largest.
+/// Simple Pie chart.
 ///
 /// Example:
 /// ```rust
@@ -115,7 +116,7 @@ impl PieSegment {
 /// ```
 #[component]
 pub fn PieChart<T>(
-    values: MaybeSignal<Vec<T>>,
+    values: MaybeSignal<Series<T>>,
     options: Box<PieChartOptions>,
     #[prop(attrs)] attrs: Vec<(&'static str, Attribute)>,
 ) -> impl IntoView
@@ -125,30 +126,34 @@ where
     let values = create_memo(move |_| {
         values
             .get()
-            .iter()
-            .map(|v| v.to_f64().unwrap())
-            .collect::<Vec<f64>>()
+            .into_iter()
+            .map(|p| Point::<f64> {
+                value: p.value.to_f64().unwrap(),
+                label: p.label.clone(),
+            })
+            .filter(|v| v.value > 0.0)
+            .collect::<Vec<Point<f64>>>()
     });
     let num_pies = create_memo(move |_| values.get().len());
-    let sum = create_memo(move |_| values.get().iter().sum::<f64>());
-    let sorted_values = create_memo(move |_| {
-        iter::once((0.0, 99.0, 0.0))
+    let sum = create_memo(move |_| values.get().iter().map(|v| v.value).sum::<f64>());
+    let values = create_memo(move |_| {
+        iter::once((0.0, 99.0, 0.0, "".to_string()))
             .chain(
                 values
                     .get()
                     .into_iter()
-                    .sorted_by(|a, b| f64::partial_cmp(a, b).unwrap())
-                    .map(|f| (f, f / sum.get()))
-                    .scan((0.0, 0.0), |state, v| {
-                        *state = (v.0, state.1 + v.1);
-                        Some(*state)
+                    .map(|f| (f.value, f.value / sum.get(), f.label))
+                    .scan((0.0, 0.0, "".to_string()), |state, v| {
+                        *state = (v.0, state.1 + v.1, format!("{}: {:.1}%", v.2, v.1 * 100.0));
+                        Some(state.clone())
                     })
-                    .map(|(f, v)| (f, (v * TAU).cos() * 99.0, (v * TAU).sin() * 99.0)),
+                    .map(|(f, v, l)| (f, (v * TAU).cos() * 99.0, (v * TAU).sin() * 99.0, l)),
             )
             .map_windows(|[from, to]| PieSegment {
                 from: (from.1, from.2),
                 to: (to.1, to.2),
                 value: to.0,
+                label: to.3.clone(),
             })
             .collect::<Vec<PieSegment>>()
     });
@@ -156,13 +161,16 @@ where
     view! {
         <svg {..attrs}>
             {move || {
-                sorted_values
+                values
                     .get()
                     .into_iter()
                     .enumerate()
                     .map(|(i, segment)| {
-                        let el = create_node_ref::<Path>();
-                        let is_hovered = use_element_hover(el);
+                        let path_el = create_node_ref::<Path>();
+                        let text_el = create_node_ref::<Text>();
+                        let is_path_hovered = use_element_hover(path_el);
+                        let is_text_hovered = use_element_hover(text_el);
+                        let is_hovered = create_memo(move |_| is_path_hovered.with(|&h| is_text_hovered.with(|&t| h || t)));
                         let label_pos = segment.get_center_unit_vector();
                         let color = String::from(options.color.color_for_index(i, num_pies.get()));
                         view! {
@@ -178,7 +186,7 @@ where
                                         ></path>
                                     </mask>
                                     <path
-                                        node_ref=el
+                                        node_ref=path_el
                                         d=segment.get_arc_path()
                                         fill=color.clone()
                                         fill-opacity=0.6
@@ -196,6 +204,7 @@ where
                                     </path>
                                     <Show when=move || is_hovered.get() fallback=|| ()>
                                         <text
+                                            node_ref=text_el
                                             font-size="15px"
                                             vector-effect="non-scaling-stroke"
                                             x=label_pos.0 * 85.0
@@ -206,7 +215,7 @@ where
                                                 dominant-baseline="middle"
                                                 color="#000"
                                             >
-                                                {segment.value}
+                                                {segment.label.clone()}
                                             </tspan>
                                         </text>
                                     </Show>

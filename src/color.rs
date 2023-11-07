@@ -76,6 +76,7 @@ impl ChartColor for Palette<'_> {
 impl ChartColor for Gradient<'_> {
     /// Implements linear interpolation with gamma correction
     fn color_for_index(&self, i: usize, total: usize) -> Color {
+        let total = total - 1;
         let from_color: (u8, u8, u8) = self.from.clone().into();
         let to_color: (u8, u8, u8) = self.to.clone().into();
         let from_color = (
@@ -118,7 +119,7 @@ fn gamma_compression(channel: f64) -> u8 {
     } else {
         channel * 12.92
     };
-    corrected as u8
+    (corrected * 255.0) as u8
 }
 
 #[cfg(test)]
