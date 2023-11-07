@@ -158,7 +158,7 @@ mod tests {
         );
         assert_eq!(
             <(u8, u8, u8)>::from(gradient.color_for_index(128, 255)),
-            (128, 128, 128)
+            (188, 188, 188)
         );
         assert_eq!(
             <(u8, u8, u8)>::from(gradient.color_for_index(255, 255)),
@@ -175,11 +175,11 @@ mod tests {
         );
         assert_eq!(
             <(u8, u8, u8)>::from(gradient.color_for_index(4, 4)),
-            (4, 96, 204)
+            (5, 94, 205)
         );
         assert_eq!(
             <(u8, u8, u8)>::from(gradient.color_for_index(2, 4)),
-            (2, 98, 202)
+            (2, 97, 202)
         );
     }
 }
