@@ -170,7 +170,9 @@ where
                         let text_el = create_node_ref::<Text>();
                         let is_path_hovered = use_element_hover(path_el);
                         let is_text_hovered = use_element_hover(text_el);
-                        let is_hovered = create_memo(move |_| is_path_hovered.with(|&h| is_text_hovered.with(|&t| h || t)));
+                        let is_hovered = create_memo(move |_| {
+                            is_path_hovered.with(|&h| is_text_hovered.with(|&t| h || t))
+                        });
                         let label_pos = segment.get_center_unit_vector();
                         let color = String::from(options.color.color_for_index(i, num_pies.get()));
                         view! {

@@ -1,4 +1,4 @@
-use crate::{ChartColor, Palette, CATPPUCCIN_COLORS};
+use crate::{axis::YAxis, ChartColor, Palette, CATPPUCCIN_COLORS};
 use leptos::{svg::*, *};
 use leptos_use::*;
 use num_traits::ToPrimitive;
@@ -150,128 +150,91 @@ where
 
     view! {
         <svg {..attrs}>
-            <svg y="10%" height="80%" overflow="visible">
-                <line
-                    x1="9.8%"
-                    y1="0%"
-                    x2="9.8%"
-                    y2="100%"
-                    stroke="black"
-                    stroke-width="1px"
-                    vector-effect="non-scaling-stroke"
-                ></line>
-                {move || {
-                    ticks
-                        .get()
-                        .into_iter()
-                        .map(|(t, s)| {
-                            view! {
-                                <line
-                                    x1="7%"
-                                    y1=format!("{}%", t)
-                                    x2="9.8%"
-                                    y2=format!("{}%", t)
-                                    stroke="black"
-                                    strocke-width="1px"
-                                    vector-effect="non-scaling-stroke"
-                                ></line>
-                                <text
-                                    x="6.9%"
-                                    y=format!("{}%", t)
-                                    font-size="20px"
-                                    dy="5px"
-                                    text-anchor="end"
-                                    vector-effect="non-scaling-stroke"
-                                >
-                                    {s}
-                                </text>
-                            }
-                        })
-                        .collect_view()
-                }}
+            <YAxis ticks=ticks/>
 
-                {move || {
-                    values
-                        .get()
-                        .into_iter()
-                        .map(|(i, v)| {
-                            let el = create_node_ref::<Rect>();
-                            let is_hovered = use_element_hover(el);
-                            let color = String::from(options.color.color_for_index(i, num_bars.get()));
-                            view! {
-                                <svg
-                                    x="10%"
-                                    width="90%"
-                                    height="100%"
-                                    viewBox="0 0 100 100"
-                                    preserveAspectRatio="none"
-                                >
-                                    <g transform="matrix(1 0 0 -1 0 100)">
-                                        <rect
-                                            node_ref=el
-                                            x=move || (5.0 + 95.0 / num_bars.get() as f64 * i as f64)
-                                            y=move || {
-                                                if v > 0.0 {
-                                                    100.0 * -tick_config.get().min_point
-                                                        / (tick_config.get().max_point
-                                                            - tick_config.get().min_point)
-                                                } else {
-                                                    100.0 * (v - tick_config.get().min_point)
-                                                        / (tick_config.get().max_point
-                                                            - tick_config.get().min_point)
-                                                }
-                                            }
-
-                                            width=move || (80.0 / num_bars.get() as f64)
-                                            height=move || {
-                                                100.0 * v.abs()
+            {move || {
+                values
+                    .get()
+                    .into_iter()
+                    .map(|(i, v)| {
+                        let el = create_node_ref::<Rect>();
+                        let is_hovered = use_element_hover(el);
+                        let color = String::from(options.color.color_for_index(i, num_bars.get()));
+                        view! {
+                            <svg
+                                x="10%"
+                                y="10%"
+                                width="90%"
+                                height="80%"
+                                viewBox="0 0 100 100"
+                                preserveAspectRatio="none"
+                            >
+                                <g transform="matrix(1 0 0 -1 0 100)">
+                                    <rect
+                                        node_ref=el
+                                        x=move || (5.0 + 95.0 / num_bars.get() as f64 * i as f64)
+                                        y=move || {
+                                            if v > 0.0 {
+                                                100.0 * -tick_config.get().min_point
+                                                    / (tick_config.get().max_point
+                                                        - tick_config.get().min_point)
+                                            } else {
+                                                100.0 * (v - tick_config.get().min_point)
                                                     / (tick_config.get().max_point
                                                         - tick_config.get().min_point)
                                             }
+                                        }
 
-                                            fill=color.clone()
-                                            fill-opacity=move || {
-                                                if is_hovered.get() { "0.8" } else { "0.6" }
-                                            }
+                                        width=move || (80.0 / num_bars.get() as f64)
+                                        height=move || {
+                                            100.0 * v.abs()
+                                                / (tick_config.get().max_point
+                                                    - tick_config.get().min_point)
+                                        }
 
-                                            stroke=color
-                                            stroke-width=move || {
-                                                if is_hovered.get() { "3px" } else { "1px" }
-                                            }
+                                        fill=color.clone()
+                                        fill-opacity=move || {
+                                            if is_hovered.get() { "0.8" } else { "0.6" }
+                                        }
 
-                                            vector-effect="non-scaling-stroke"
-                                        ></rect>
-                                    </g>
-                                </svg>
-                                <Show when=move || is_hovered.get() fallback=|| ()>
-                                    <text
-                                        font-size="15px"
+                                        stroke=color
+                                        stroke-width=move || {
+                                            if is_hovered.get() { "3px" } else { "1px" }
+                                        }
+
                                         vector-effect="non-scaling-stroke"
-                                        x=move || {
-                                            format!(
-                                                "{}%", (15.0 + 85.0 / num_bars.get() as f64 * (i as f64 + 0.5))
-                                            )
-                                        }
+                                    ></rect>
+                                </g>
+                            </svg>
+                            <Show when=move || is_hovered.get() fallback=|| ()>
+                                <text
+                                    font-size="15px"
+                                    vector-effect="non-scaling-stroke"
+                                    x=move || {
+                                        format!(
+                                            "{}%", (15.0 + 85.0 / num_bars.get() as f64 * (i as f64 +
+                                            0.5))
+                                        )
+                                    }
 
-                                        y=move || {
-                                            format!(
-                                                "{}%", (100.0 - 100.0 * (v - tick_config.get().min_point) /
-                                                (tick_config.get().max_point - tick_config.get().min_point))
-                                            )
-                                        }
+                                    y=move || {
+                                        format!(
+                                            "{}%", (100.0 - 100.0 * (v - tick_config.get().min_point) /
+                                            (tick_config.get().max_point - tick_config.get().min_point))
+                                        )
+                                    }
 
-                                        dy=move || { if v > 0.0 { "-5" } else { "15" } }
-                                        dx="-9"
-                                    >
-                                        {v}
-                                    </text>
-                                </Show>
-                            }
-                        })
-                        .collect_view()
-                }}
+                                    dy=move || { if v > 0.0 { "-5" } else { "15" } }
+                                    dx="-9"
+                                >
+                                    {v}
+                                </text>
+                            </Show>
+                        }
+                    })
+                    .collect_view()
+            }}
 
-            </svg>
         </svg>
     }
 }

@@ -1,7 +1,9 @@
 #![feature(iter_map_windows)]
 
+pub mod axis;
 pub mod bar;
 pub mod color;
+pub mod legend;
 pub mod pie;
 pub mod point;
 
