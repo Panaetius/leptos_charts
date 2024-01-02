@@ -31,12 +31,6 @@ pub fn YAxis(ticks: Memo<Vec<(f64, String)>>) -> impl IntoView {
                                             .width();
                                         let target_width = parent_width * 0.069;
                                         let text_size = elem.get_bounding_client_rect();
-                                        console_log(
-                                            format!(
-                                                "{},{},{}", text_size.width(), target_width, parent_width
-                                            )
-                                                .as_str(),
-                                        );
                                         if text_size.width() > target_width {
                                             let factor = target_width / text_size.width();
                                             console_log(format!("{:?}", factor).as_str());

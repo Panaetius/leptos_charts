@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use leptos::{svg::*, *};
 use leptos_use::*;
 use num_traits::ToPrimitive;
