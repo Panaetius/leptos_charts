@@ -82,7 +82,8 @@ where
                     <polyline
                         fill="none"
                         style="stroke:url(#gradient)"
-                        stroke-width="0.1"
+                        stroke-width="1"
+                        vector-effect="non-scaling-stroke"
                         stroke-linejoin="round"
                         points=move || {
                             values
